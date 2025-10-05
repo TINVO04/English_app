@@ -97,8 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _password.text.trim(),
         );
         if (!mounted) return;
-        _show('Đăng nhập thành công');
-        Navigator.pushReplacementNamed(context, '/admin');
+        await _navigateByRole();
       }
     } on AuthException catch (e) {
       _show(e.message);
@@ -109,6 +108,66 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _navigateByRole() async {
+    final client = Supabase.instance.client;
+    final userId = client.auth.currentUser?.id;
+
+    if (userId == null) {
+      _show('Không lấy được thông tin tài khoản, vui lòng đăng nhập lại.');
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    try {
+      final data = await client
+          .from('nguoi_dung')
+          .select('vai_tro_id, vai_tro: vai_tro_uid(ma, ten)')
+          .or('user_id.eq.$userId,auth_uid.eq.$userId')
+          .maybeSingle();
+
+      final roleCode = (data?['vai_tro'] as Map<String, dynamic>?)?['ma'] as String?;
+      final roleId = data?['vai_tro_id'] as int?;
+      final route = _resolveRouteByRole(code: roleCode, id: roleId);
+
+      if (route == null) {
+        _show('Không xác định được vai trò của tài khoản, mặc định chuyển tới trang quản trị.');
+        Navigator.pushReplacementNamed(context, '/admin');
+        return;
+      }
+
+      _show('Đăng nhập thành công');
+      Navigator.pushReplacementNamed(context, route);
+    } on PostgrestException catch (error) {
+      _show('Không thể lấy thông tin vai trò: ${error.message}');
+      Navigator.pushReplacementNamed(context, '/admin');
+    } catch (error) {
+      _show('Không thể lấy thông tin vai trò: ${error.toString()}');
+      Navigator.pushReplacementNamed(context, '/admin');
+    }
+  }
+
+  String? _resolveRouteByRole({String? code, int? id}) {
+    final normalized = code?.toLowerCase().trim();
+
+    if (normalized != null) {
+      const adminCodes = {'quan_tri', 'admin', 'administrator'};
+      const teacherCodes = {'giao_vien', 'teacher', 'giang_vien'};
+
+      if (adminCodes.contains(normalized)) return '/admin';
+      if (teacherCodes.contains(normalized)) return '/teacher-home';
+    }
+
+    if (id != null) {
+      const adminIds = {1, 6};
+      const teacherIds = {2, 7};
+
+      if (adminIds.contains(id)) return '/admin';
+      if (teacherIds.contains(id)) return '/teacher-home';
+    }
+
+    return null;
   }
 
   @override
