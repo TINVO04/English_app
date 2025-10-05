@@ -501,11 +501,6 @@ class _TeacherCard extends StatelessWidget {
               runSpacing: 12,
               children: [
                 _InfoBadge(
-                  icon: Icons.badge_outlined,
-                  label: 'Mã người dùng',
-                  value: teacher.maNguoiDung,
-                ),
-                _InfoBadge(
                   icon: Icons.cake_outlined,
                   label: 'Độ tuổi',
                   value: teacher.tuoi > 0 ? '${teacher.tuoi} tuổi' : 'Chưa rõ',

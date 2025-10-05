@@ -95,6 +95,12 @@ class TeacherService {
       return [];
     }
 
+    final assignedRows = await _client.from('giao_vien').select('ma_nguoi_dung');
+    final assignedIds = <String>{
+      for (final row in assignedRows as List<dynamic>)
+        if (row['ma_nguoi_dung'] != null) row['ma_nguoi_dung'] as String,
+    };
+
     final data = await _client
         .from('nguoi_dung')
         .select('uid, ho_va_ten, email, so_dien_thoai')
@@ -104,6 +110,7 @@ class TeacherService {
     final list = data as List<dynamic>;
     return list
         .map((row) => TeacherAccountOption.fromJson(row as Map<String, dynamic>))
+        .where((option) => !assignedIds.contains(option.uid))
         .toList();
   }
 }
