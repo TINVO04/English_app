@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // import trang Home
 
 class TeacherScreen extends StatelessWidget {
   const TeacherScreen({super.key});
@@ -76,10 +75,7 @@ class TeacherScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           // Quay lại Home
           onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
+            Navigator.pushReplacementNamed(context, '/admin');
           },
         ),
         actions: [

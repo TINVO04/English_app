@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/home/class_screen.dart';
-import 'package:my_app/home/room_screen.dart';
-import 'package:my_app/home/teacher_screen.dart';
-import 'package:my_app/home/tuition_screen.dart';
-import 'student_screen.dart';
-import 'dashboard_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+import 'class_screen.dart';
+import 'dashboard_screen.dart';
+import 'room_screen.dart';
+import 'student_screen.dart';
+import 'teacher_screen.dart';
+import 'tuition_screen.dart';
+
+enum _AdminMenuAction { profile, settings, logout }
+
+class AdminDashboardScreen extends StatelessWidget {
+  const AdminDashboardScreen({super.key});
 
   static const List<Map<String, dynamic>> _features = [
     {
@@ -177,7 +181,9 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          _buildAccountMenu(context),
+          const SizedBox(width: 12),
         ],
       ),
       body: LayoutBuilder(
@@ -225,6 +231,143 @@ class HomeScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  PopupMenuButton<_AdminMenuAction> _buildAccountMenu(BuildContext context) {
+    return PopupMenuButton<_AdminMenuAction>(
+      tooltip: "Tài khoản quản trị",
+      offset: const Offset(0, 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onSelected: (value) => _handleMenuSelection(context, value),
+      itemBuilder: (context) => [
+        PopupMenuItem<_AdminMenuAction>(
+          value: _AdminMenuAction.profile,
+          child: Row(
+            children: const [
+              Icon(Icons.badge, color: Colors.indigo),
+              SizedBox(width: 12),
+              Text("Hồ sơ cá nhân"),
+            ],
+          ),
+        ),
+        PopupMenuItem<_AdminMenuAction>(
+          value: _AdminMenuAction.settings,
+          child: Row(
+            children: const [
+              Icon(Icons.settings, color: Colors.indigo),
+              SizedBox(width: 12),
+              Text("Thiết lập hệ thống"),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<_AdminMenuAction>(
+          value: _AdminMenuAction.logout,
+          child: Row(
+            children: const [
+              Icon(Icons.logout, color: Colors.redAccent),
+              SizedBox(width: 12),
+              Text("Đăng xuất"),
+            ],
+          ),
+        ),
+      ],
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFF6C63FF).withOpacity(0.12),
+            child: const Icon(Icons.person_outline, color: Color(0xFF6C63FF)),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                "Admin Center",
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                "Quản trị viên",
+                style: TextStyle(color: Colors.black54, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleMenuSelection(
+    BuildContext context,
+    _AdminMenuAction value,
+  ) async {
+    switch (value) {
+      case _AdminMenuAction.profile:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Tính năng hồ sơ đang được phát triển."),
+          ),
+        );
+        break;
+      case _AdminMenuAction.settings:
+        showModalBottomSheet<void>(
+          context: context,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (context) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    "Thiết lập hệ thống",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  const ListTile(
+                    leading: Icon(Icons.palette_outlined),
+                    title: Text("Giao diện & chủ đề"),
+                    subtitle: Text("Quản lý màu sắc, logo và thương hiệu"),
+                  ),
+                  const ListTile(
+                    leading: Icon(Icons.security_outlined),
+                    title: Text("Bảo mật & phân quyền"),
+                    subtitle: Text("Cấu hình vai trò, quyền truy cập"),
+                  ),
+                  const ListTile(
+                    leading: Icon(Icons.notifications_active_outlined),
+                    title: Text("Thông báo & nhắc việc"),
+                    subtitle: Text("Thiết lập kênh gửi thông báo"),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+        break;
+      case _AdminMenuAction.logout:
+        await Supabase.instance.client.auth.signOut();
+        if (context.mounted) {
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/login', (route) => false);
+        }
+        break;
+    }
   }
 
   Widget _buildWelcomeHeader(BuildContext context, bool isWide) {

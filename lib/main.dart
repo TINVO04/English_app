@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../home/home_screen.dart';
+
+import 'admin_dashboard/admin_dashboard_screen.dart';
 import 'env.dart';
-import '../../home/dashboard_screen.dart';
 import 'features/auth/auth_screen.dart';
-import '../../home/teacher_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
@@ -19,9 +18,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: HomeScreen(),
+      initialRoute: '/login',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/admin': (context) => const AdminDashboardScreen(),
+      },
     );
   }
 }
