@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/bg_data.dart';
-import '../../home/home_screen.dart';
 import '../../utils/text_utils.dart';
 import 'auth_service.dart';
 
@@ -80,10 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         if (!mounted) return;
         _show('Đăng nhập thành công');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.pushReplacementNamed(context, '/admin');
       }
     } on AuthException catch (e) {
       _show(e.message);
