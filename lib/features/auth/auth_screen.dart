@@ -92,13 +92,47 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         // Đăng nhập
-        await _auth.signIn(
+        final res = await _auth.signIn(
           email: _email.text.trim(),
           password: _password.text.trim(),
         );
+        final userId = res.user?.id ?? _auth.currentUser?.id;
+        if (userId == null) {
+          _show('Không thể xác định tài khoản hiện tại.');
+          return;
+        }
+
+        final profile = await Supabase.instance.client
+            .from('nguoi_dung')
+            .select('vai_tro:vai_tro_uid(ma)')
+            .eq('auth_uid', userId)
+            .maybeSingle();
+
+        final roleData = profile?['vai_tro'];
+        final roleCode =
+            roleData is Map ? roleData['ma'] as String? : roleData as String?;
+
+        if (roleCode == null) {
+          _show('Không tìm thấy vai trò của tài khoản này.');
+          return;
+        }
+
         if (!mounted) return;
         _show('Đăng nhập thành công');
-        Navigator.pushReplacementNamed(context, '/admin');
+
+        String routeName;
+        switch (roleCode) {
+          case 'giao_vien':
+            routeName = '/teacher-home';
+            break;
+          case 'quan_tri':
+            routeName = '/admin';
+            break;
+          default:
+            routeName = '/admin';
+        }
+
+        Navigator.pushReplacementNamed(context, routeName);
       }
     } on AuthException catch (e) {
       _show(e.message);
