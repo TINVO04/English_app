@@ -1,0 +1,268 @@
+-- ========= Extensions =========
+create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
+
+-- ========= Bảng vai trò =========
+create table if not exists public.vai_tro (
+  uid uuid primary key default uuid_generate_v4(),
+  ma text not null unique,
+  ten text not null
+);
+insert into public.vai_tro (ma, ten)
+values 
+  ('quan_tri', 'Quản trị viên'),
+  ('giao_vien', 'Giáo viên'),
+  ('hoc_vien', 'Học viên'),
+  ('nhan_vien_tu_van', 'Nhân viên tư vấn')
+on conflict (ma) do nothing;
+
+
+-- ========= Người Dùng =========
+create table if not exists public.nguoi_dung (
+  uid             uuid primary key default gen_random_uuid(),
+  auth_uid        uuid unique references auth.users(id) on delete cascade,
+  ho_va_ten       text not null,
+  email           text unique,
+  so_dien_thoai   varchar(20),
+  dia_chi         text,
+  vai_tro_uid     uuid not null references public.vai_tro(uid),
+  thoi_gian_tao   timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  da_kich_hoat    boolean not null default true
+);
+
+-- ========= Giáo viên =========
+create table if not exists public.giao_vien (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_nguoi_dung uuid not null unique references public.nguoi_dung(uid) on delete cascade,
+  ten text not null,
+  trinh_do text not null,
+  tuoi int not null check (tuoi >= 18),
+  so_dien_thoai varchar(20),
+  luong numeric(12,2) not null check (luong >= 0),
+  ngay_tao timestamptz not null default now(),
+  ngay_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Học viên =========
+create table if not exists public.hoc_vien (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_nguoi_dung uuid not null unique references public.nguoi_dung(uid) on delete cascade,
+  ngay_sinh date,
+  gioi_tinh char(1) check (gioi_tinh in ('M','F','O')),
+  dia_chi text,
+  ghi_chu text,
+  ngay_tao timestamptz not null default now(),
+  ngay_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Phòng =========
+create table if not exists public.phong (
+  uid uuid primary key default uuid_generate_v4(),
+  loai_phong text not null,
+  so_phong text not null unique,
+  suc_chua int not null check (suc_chua > 0),
+  vat_chat text,
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Khóa học =========
+create table if not exists public.khoa_hoc (
+  uid uuid primary key default uuid_generate_v4(),
+  ten_khoa_hoc text not null unique,
+  mo_ta text,
+  ngon_ngu text not null,
+  thoi_luong int not null check (thoi_luong > 0),
+  hoc_phi numeric(10,2) not null check (hoc_phi >= 0),
+  ngay_bat_dau date,
+  ngay_ket_thuc date,
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  constraint ck_kh_date check (
+    (ngay_bat_dau is null and ngay_ket_thuc is null)
+    or (ngay_bat_dau is not null and ngay_ket_thuc >= ngay_bat_dau)
+  )
+);
+
+-- ========= Lớp học =========
+create table if not exists public.lop_hoc (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_khoa_hoc uuid not null references public.khoa_hoc(uid) on delete cascade,
+  ma_giao_vien uuid not null references public.giao_vien(uid),
+  ma_phong uuid not null references public.phong(uid),
+  so_luong_toi_da int not null default 20 check (so_luong_toi_da > 0),
+  trang_thai text not null default 'mo' check (trang_thai in ('mo','dang_dien_ra','dong')),
+  phong_ghi_chu text,
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Đăng ký =========
+create table if not exists public.dang_ky (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_hoc_vien uuid not null references public.hoc_vien(uid) on delete cascade,
+  ma_lop_hoc uuid not null references public.lop_hoc(uid) on delete cascade,
+  ngay_dang_ky date not null default current_date,
+  trang_thai text not null default 'cho_duyet' check (trang_thai in ('cho_duyet','da_dang_ky','bo_hoc')),
+  mua_tai_lieu boolean not null default false,
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  constraint uq_dk unique (ma_hoc_vien, ma_lop_hoc)
+);
+
+-- ========= Lịch học =========
+create table if not exists public.lich_hoc (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_lop_hoc uuid not null references public.lop_hoc(uid) on delete cascade,
+  ngay_trong_tuan text not null check (ngay_trong_tuan in ('Thu_Hai','Thu_Ba','Thu_Tu','Thu_Nam','Thu_Sau','Thu_Bay','Chu_Nhat')),
+  gio_bat_dau time not null,
+  gio_ket_thuc time not null,
+  phong_hoc text,
+  trang_thai text not null default 'da_lich' check (trang_thai in ('da_lich','da_huy')),
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  constraint ck_lich_time check (gio_ket_thuc > gio_bat_dau)
+);
+
+-- ========= Điểm danh =========
+create table if not exists public.diem_danh (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_dang_ky uuid not null references public.dang_ky(uid) on delete cascade,
+  ma_lich_hoc uuid not null references public.lich_hoc(uid),
+  co_mat boolean not null default false,
+  loai_vang text not null default 'khong_phep' check (loai_vang in ('co_phep','khong_phep')),
+  thoi_gian_diem_danh timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  constraint uq_dd unique (ma_dang_ky, ma_lich_hoc)
+);
+
+-- ========= Điểm =========
+create table if not exists public.diem (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_dang_ky uuid not null references public.dang_ky(uid),
+  loai_diem text not null check (loai_diem in ('bai_tap','giua_ky','cuoi_ky','thi')),
+  gia_tri_diem numeric(4,2) check (gia_tri_diem between 0 and 10),
+  ghi_chu text,
+  thoi_gian_cham timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  constraint uq_diem unique (ma_dang_ky, loai_diem)
+);
+
+-- ========= Yêu cầu khóa học =========
+create table if not exists public.yeu_cau_khoa_hoc (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_khoa_hoc uuid not null unique references public.khoa_hoc(uid) on delete cascade,
+  ty_le_diem_danh_toi_thieu numeric(5,2) not null check (ty_le_diem_danh_toi_thieu between 0 and 100),
+  diem_bai_tap_toi_thieu numeric(4,2),
+  diem_giua_ky_toi_thieu numeric(4,2),
+  diem_cuoi_ky_toi_thieu numeric(4,2),
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Tài liệu =========
+create table if not exists public.tai_lieu (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_khoa_hoc uuid not null references public.khoa_hoc(uid) on delete cascade,
+  ten_tai_lieu text not null,
+  loai_tai_lieu text check (loai_tai_lieu in ('giao_trinh','tai_lieu_tham_khao','bai_giang')),
+  gia_tien numeric(10,2) not null check (gia_tien >= 0),
+  ngay_dang date not null default current_date,
+  constraint uq_tl unique (ma_khoa_hoc, ten_tai_lieu)
+);
+
+-- ========= Học bù =========
+create table if not exists public.hoc_bu (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_dang_ky uuid not null unique references public.dang_ky(uid) on delete cascade,
+  so_buoi_can_hoc_bu int not null,
+  trang_thai text not null default 'chua_hoc_bu' check (trang_thai in ('chua_hoc_bu','dang_hoc_bu','da_hoan_thanh')),
+  ngay_tao timestamptz not null default now(),
+  ngay_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Hóa đơn =========
+create table if not exists public.hoa_don (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_dang_ky uuid not null references public.dang_ky(uid) on delete cascade,
+  so_tien numeric(10,2) not null check (so_tien >= 0),
+  ngay_dao_han date not null,
+  ngay_thanh_toan date,
+  loai_hoa_don text not null default 'hoc_phi' check (loai_hoa_don in ('hoc_phi','hoc_bu','le_phi_thi','mua_giao_trinh')),
+  trang_thai text not null default 'chua_thanh_toan' check (trang_thai in ('chua_thanh_toan','da_thanh_toan','tre_han')),
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now(),
+  constraint uq_hd unique (ma_dang_ky, loai_hoa_don)
+);
+
+-- ========= Chứng chỉ =========
+create table if not exists public.chung_chi (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_dang_ky uuid not null references public.dang_ky(uid) on delete cascade,
+  so_chung_chi text not null unique,
+  ho_va_ten text not null,
+  cap_do_dat_duoc text not null,
+  ngay_cap date not null,
+  ngay_het_han date,
+  ma_nguoi_ky uuid not null references public.nguoi_dung(uid),
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Báo cáo =========
+create table if not exists public.bao_cao (
+  uid uuid primary key default uuid_generate_v4(),
+  loai_bao_cao text not null check (loai_bao_cao in ('tuan','thang','quy','nam','tu_do','doanh_thu')),
+  ngay_bat_dau date not null,
+  ngay_ket_thuc date not null,
+  du_lieu jsonb not null,
+  thoi_gian_tao_bao_cao timestamptz not null default now(),
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Ngưỡng điểm danh =========
+create table if not exists public.nguong_diem_danh (
+  uid uuid primary key default uuid_generate_v4(),
+  ma_lop_hoc uuid not null unique references public.lop_hoc(uid) on delete cascade,
+  so_vang_co_phep int not null,
+  so_vang_khong_phep int not null,
+  nguong_canh_bao int not null,
+  thoi_gian_tao timestamptz not null default now(),
+  thoi_gian_cap_nhat timestamptz not null default now()
+);
+
+-- ========= Trigger tự động insert vào nguoi_dung =========
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  v_role uuid;
+  v_role_ma text;
+begin
+  -- lấy role từ metadata, mặc định là 'hoc_vien'
+  v_role_ma := coalesce(new.raw_user_meta_data->>'role', 'hoc_vien');
+  select uid into v_role from public.vai_tro where ma = v_role_ma;
+
+  if v_role is null then
+    raise exception 'Role "%" chưa tồn tại trong bảng vai_tro', v_role_ma;
+  end if;
+
+  insert into public.nguoi_dung (auth_uid, ho_va_ten, email, vai_tro_uid)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+    new.email,
+    v_role
+  )
+  on conflict (auth_uid) do nothing;
+
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
