@@ -26,7 +26,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool showOption = false;
 
   final _auth = AuthService();
-  static const int defaultRoleId = 6; // Cách 1: hardcode vai trò hợp lệ
+  String? _defaultRoleUid; // Lưu uid của vai trò mặc định (học viên)
+
+  Future<void> _ensureDefaultRoleUid() async {
+    if (_defaultRoleUid != null) return;
+    final roleRow = await Supabase.instance.client
+        .from('vai_tro')
+        .select('uid')
+        .eq('ma', 'hoc_vien')
+        .maybeSingle();
+    final roleUid = roleRow?['uid'] as String?;
+    if (roleUid != null && roleUid.isNotEmpty) {
+      _defaultRoleUid = roleUid;
+    }
+  }
 
   @override
   void dispose() {
@@ -55,15 +68,21 @@ class _LoginScreenState extends State<LoginScreen> {
           // Insert vào public.nguoi_dung
           final uid = Supabase.instance.client.auth.currentUser?.id;
           if (uid != null) {
+            await _ensureDefaultRoleUid();
+            final roleUid = _defaultRoleUid;
+            if (roleUid == null) {
+              _show('Không tìm thấy vai trò mặc định cho người dùng mới.');
+              return;
+            }
+            final defaultFullName = _email.text.trim().split('@').first;
+            final hoVaTen = _fullName.text.trim().isEmpty
+                ? defaultFullName
+                : _fullName.text.trim();
             final payload = {
-              'user_id': uid,
-              'ten_nguoi_dung': _email.text.trim().split('@').first,
-              'mat_khau_ma_hoa': 'supabase_managed',
-              'ho_va_ten': _fullName.text.trim().isEmpty
-                  ? _email.text.trim().split('@').first
-                  : _fullName.text.trim(),
+              'auth_uid': uid,
+              'ho_va_ten': hoVaTen,
               'email': _email.text.trim(),
-              'vai_tro_id': defaultRoleId,
+              'vai_tro_uid': roleUid,
               'da_kich_hoat': true,
             };
             await Supabase.instance.client.from('nguoi_dung').insert(payload);
